@@ -11,6 +11,13 @@
     <header class="header">
       <div class="logo-badge">Auth0 + Flask</div>
       <h1>User Profile</h1>
+      <nav class="nav-bar">
+        <a href="{{ url_for('home') }}" class="nav-link">Home</a>
+        <a href="{{ url_for('chat') }}" class="nav-link">Chat</a>
+        <a href="{{ url_for('settings') }}" class="nav-link">Settings</a>
+        <a href="{{ url_for('profile') }}" class="nav-link active">Profile</a>
+        <a href="{{ url_for('logout') }}" class="nav-link nav-logout">Log Out</a>
+      </nav>
     </header>
 
     <main class="card profile-card">
@@ -62,7 +69,8 @@
       </details>
 
       <div class="button-group">
-        <a href="{{ url_for('home') }}" class="btn btn-secondary">Back to Home</a>
+        <a href="{{ url_for('chat') }}" class="btn btn-primary">Open Chat</a>
+        <a href="{{ url_for('settings') }}" class="btn btn-secondary">Settings</a>
         <a href="{{ url_for('logout') }}" class="btn btn-danger">Log Out</a>
       </div>
     </main>
@@ -73,4 +81,3 @@
   </div>
 </body>
 </html>
-

@@ -1,8 +1,10 @@
-"""Auth0 ServerClient initialization and in-memory store implementations."""
+"""Auth0 ServerClient initialization, token validation, and in-memory store implementations."""
 
 import os
 from typing import Any, Optional
+import jwt
 from dotenv import load_dotenv
+from jwt import PyJWKClient
 from auth0_server_python.auth_server import ServerClient
 from auth0_server_python.auth_types import LogoutOptions, StartInteractiveLoginOptions
 from auth0_server_python.store.abstract import StateStore, TransactionStore
@@ -15,6 +17,7 @@ AUTH0_CLIENT_ID = os.getenv("AUTH0_CLIENT_ID")
 AUTH0_CLIENT_SECRET = os.getenv("AUTH0_CLIENT_SECRET")
 AUTH0_SECRET = os.getenv("AUTH0_SECRET")
 AUTH0_REDIRECT_URI = os.getenv("AUTH0_REDIRECT_URI", "http://localhost:5000/callback")
+AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE")
 
 if not all([AUTH0_DOMAIN, AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, AUTH0_SECRET]):
     raise ValueError(
@@ -129,6 +132,13 @@ class InMemoryTransactionStore(TransactionStore):
 state_store = InMemoryStateStore({"secret": AUTH0_SECRET})
 transaction_store = InMemoryTransactionStore({"secret": AUTH0_SECRET})
 
+# Configure authorization parameters (request openid, profile, email scopes and audience if set)
+default_auth_params: dict[str, Any] = {
+    "scope": "openid profile email",
+}
+if AUTH0_AUDIENCE:
+    default_auth_params["audience"] = AUTH0_AUDIENCE
+
 # Initialize Auth0 ServerClient
 auth0 = ServerClient(
     domain=AUTH0_DOMAIN,
@@ -136,12 +146,50 @@ auth0 = ServerClient(
     client_secret=AUTH0_CLIENT_SECRET,
     secret=AUTH0_SECRET,
     redirect_uri=AUTH0_REDIRECT_URI,
-    authorization_params={
-        "scope": "openid profile email",
-    },
+    authorization_params=default_auth_params,
     state_store=state_store,
     transaction_store=transaction_store,
 )
+
+# Initialize PyJWKClient for tenant JWKS access token verification
+_domain_normalized = (AUTH0_DOMAIN or "").replace("https://", "").replace("http://", "").strip("/")
+_jwks_url = f"https://{_domain_normalized}/.well-known/jwks.json"
+jwks_client = PyJWKClient(_jwks_url)
+
+
+def verify_access_token(token: str) -> dict[str, Any]:
+    """
+    Validate the Auth0 access token (JWT, RS256, via the tenant's JWKS).
+
+    Args:
+        token: Raw Bearer JWT string from the Authorization header.
+
+    Returns:
+        Decoded payload dict containing claims (e.g. 'sub', 'aud', 'iss').
+
+    Raises:
+        ValueError: If the token is invalid, expired, or signature verification fails.
+    """
+    if not token:
+        raise ValueError("Token is required.")
+
+    try:
+        signing_key = jwks_client.get_signing_key_from_jwt(token)
+        issuer = f"https://{_domain_normalized}/"
+        decode_kwargs: dict[str, Any] = {
+            "algorithms": ["RS256"],
+            "issuer": issuer,
+            "options": {"verify_exp": True},
+            "leeway": 60,
+        }
+        if AUTH0_AUDIENCE:
+            decode_kwargs["audience"] = AUTH0_AUDIENCE
+
+        payload = jwt.decode(token, signing_key.key, **decode_kwargs)
+        return payload
+    except Exception as e:
+        raise ValueError(f"Token validation failed: {str(e)}")
+
 
 __all__ = [
     "auth0",
@@ -150,5 +198,6 @@ __all__ = [
     "LogoutOptions",
     "StartInteractiveLoginOptions",
     "AUTH0_REDIRECT_URI",
+    "AUTH0_AUDIENCE",
+    "verify_access_token",
 ]
-

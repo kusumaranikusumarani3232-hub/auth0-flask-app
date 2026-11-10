@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings - Context-Preserving Assistant</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="logo-badge">Assistant Settings</div>
+      <h1>Preferences</h1>
+      <nav class="nav-bar">
+        <a href="{{ url_for('home') }}" class="nav-link">Home</a>
+        <a href="{{ url_for('chat') }}" class="nav-link">Chat</a>
+        <a href="{{ url_for('settings') }}" class="nav-link active">Settings</a>
+        <a href="{{ url_for('profile') }}" class="nav-link">Profile</a>
+        <a href="{{ url_for('logout') }}" class="nav-link nav-logout">Log Out</a>
+      </nav>
+    </header>
+
+    {% if message %}
+    <div class="alert alert-success">
+      &#10003; {{ message }}
+    </div>
+    {% endif %}
+
+    <main class="card settings-card">
+      <div class="card-intro">
+        <h2>Home Location &amp; Units</h2>
+        <p class="subtitle">Set your home city and preferred temperature units. Your Context-Preserving Assistant uses these settings automatically.</p>
+      </div>
+
+      <form method="POST" action="{{ url_for('settings') }}" class="settings-form">
+        <div class="form-group">
+          <label for="city" class="form-label">Home City</label>
+          <input
+            type="text"
+            id="city"
+            name="city"
+            class="form-input"
+            value="{{ settings.city }}"
+            placeholder="e.g. London, Paris, Tokyo, New York"
+            required
+          >
+          <small class="form-hint">Used by Open-Meteo geocoding to resolve your coordinates.</small>
+        </div>
+
+        <div class="form-group">
+          <label for="units" class="form-label">Temperature Units</label>
+          <select id="units" name="units" class="form-select">
+            <option value="celsius" {% if settings.units == 'celsius' %}selected{% endif %}>Celsius (°C)</option>
+            <option value="fahrenheit" {% if settings.units == 'fahrenheit' %}selected{% endif %}>Fahrenheit (°F)</option>
+          </select>
+          <small class="form-hint">Preferred scale for weather forecasts.</small>
+        </div>
+
+        <div class="button-group">
+          <button type="submit" class="btn btn-primary">Save Settings</button>
+          <a href="{{ url_for('chat') }}" class="btn btn-secondary">Open Assistant Chat</a>
+        </div>
+      </form>
+    </main>
+
+    <footer class="footer">
+      <p>Protected API: <code>/api/settings</code> &bull; Verified via Auth0 RS256 JWT</p>
+    </footer>
+  </div>
+</body>
+</html>
+

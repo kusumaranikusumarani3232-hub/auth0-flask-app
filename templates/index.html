@@ -1,16 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Auth0 Flask App</title>
+  <title>Context-Preserving Assistant - Auth0 App</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
+
 <body>
   <div class="container">
     <header class="header">
-      <div class="logo-badge">Auth0 + Flask</div>
-      <h1>Hackathon Auth Demo</h1>
+      <div class="logo-badge">Auth0 + Open-Meteo</div>
+      <h1>Context-Preserving Assistant</h1>
+      {% if user %}
+      <nav class="nav-bar">
+        <a href="{{ url_for('home') }}" class="nav-link active">Home</a>
+        <a href="{{ url_for('chat') }}" class="nav-link">Chat</a>
+        <a href="{{ url_for('settings') }}" class="nav-link">Settings</a>
+        <a href="{{ url_for('profile') }}" class="nav-link">Profile</a>
+        <a href="{{ url_for('logout') }}" class="nav-link nav-logout">Log Out</a>
+      </nav>
+      {% endif %}
     </header>
 
     {% if error %}
@@ -21,39 +32,42 @@
 
     <main class="card">
       {% if user %}
-        <div class="welcome-box">
-          {% if user.picture %}
-            <img src="{{ user.picture }}" alt="{{ user.name or 'User' }}" class="avatar">
-          {% else %}
-            <div class="avatar-placeholder">
-              {{ (user.name or user.email or 'U')[0] | upper }}
-            </div>
-          {% endif %}
-          <h2>Welcome, <span class="highlight">{{ user.name or user.nickname or user.email or 'Friend' }}</span>!</h2>
-          <p class="subtitle">You are successfully authenticated via Auth0.</p>
-
-          <div class="button-group">
-            <a href="{{ url_for('profile') }}" class="btn btn-primary">View Profile</a>
-            <a href="{{ url_for('logout') }}" class="btn btn-secondary">Log Out</a>
-          </div>
+      <div class="welcome-box">
+        {% if user.picture %}
+        <img src="{{ user.picture }}" alt="{{ user.name or 'User' }}" class="avatar">
+        {% else %}
+        <div class="avatar-placeholder">
+          {{ (user.name or user.email or 'U')[0] | upper }}
         </div>
+        {% endif %}
+        <h2>Welcome, <span class="highlight">{{ user.name or user.nickname or user.email or 'Friend' }}</span>!</h2>
+        <p class="subtitle">You are successfully authenticated via Auth0. Your assistant is ready to use your profile
+          context.</p>
+
+        <div class="button-group">
+          <a href="{{ url_for('chat') }}" class="btn btn-primary btn-large">&#129302; Open Assistant Chat</a>
+          <a href="{{ url_for('settings') }}" class="btn btn-secondary">&#9881;&#65039; Settings</a>
+          <a href="{{ url_for('profile') }}" class="btn btn-secondary">View Profile</a>
+          <a href="{{ url_for('logout') }}" class="btn btn-danger">Log Out</a>
+        </div>
+      </div>
       {% else %}
-        <div class="guest-box">
-          <div class="icon-lock">&#128274;</div>
-          <h2>Welcome to the App</h2>
-          <p class="subtitle">Secure authentication powered by Auth0 Python Server SDK.</p>
+      <div class="guest-box">
+        <div class="icon-lock">&#128274;</div>
+        <h2>Welcome to the App</h2>
+        <p class="subtitle">Secure authentication powered by Auth0 Python Server SDK and API access tokens.</p>
 
-          <div class="button-group">
-            <a href="{{ url_for('login') }}" class="btn btn-primary btn-large">Log In with Auth0</a>
-          </div>
+        <div class="button-group">
+          <a href="{{ url_for('login') }}" class="btn btn-primary btn-large">Log In with Auth0</a>
         </div>
+      </div>
       {% endif %}
     </main>
 
     <footer class="footer">
-      <p>Built for the Hackathon Challenge &bull; Port 5000</p>
+      <p>The Context-Preserving Assistant &bull; Port 5000</p>
     </footer>
   </div>
 </body>
-</html>
 
+</html>

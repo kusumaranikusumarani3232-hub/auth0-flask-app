@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat - Context-Preserving Assistant</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="container chat-container">
+    <header class="header">
+      <div class="logo-badge">AI Assistant</div>
+      <h1>Context-Preserving Assistant</h1>
+      <nav class="nav-bar">
+        <a href="{{ url_for('home') }}" class="nav-link">Home</a>
+        <a href="{{ url_for('chat') }}" class="nav-link active">Chat</a>
+        <a href="{{ url_for('settings') }}" class="nav-link">Settings</a>
+        <a href="{{ url_for('profile') }}" class="nav-link">Profile</a>
+        <a href="{{ url_for('logout') }}" class="nav-link nav-logout">Log Out</a>
+      </nav>
+    </header>
+
+    <main class="card chat-card">
+      <div class="chat-thread" id="chatThread">
+        <div class="message message-assistant">
+          <div class="message-avatar">&#129302;</div>
+          <div class="message-content">
+            <p>Hello, <strong>{{ user.name or user.nickname or 'there' }}</strong>! I am your <strong>Context-Preserving Assistant</strong>.</p>
+            <p>Ask me about the weather, and I will securely retrieve your home city and units using your Auth0 access token, then fetch live conditions from Open-Meteo!</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="quick-prompts">
+        <button type="button" class="prompt-chip" onclick="sendQuickPrompt('What is the weather?')">
+          &#9728;&#65039; What is the weather?
+        </button>
+        <button type="button" class="prompt-chip" onclick="sendQuickPrompt('How is the temperature in my home city?')">
+          &#127777;&#65039; How is the temperature in my home city?
+        </button>
+      </div>
+
+      <form id="chatForm" class="chat-input-area" onsubmit="handleChatSubmit(event)">
+        <input
+          type="text"
+          id="messageInput"
+          class="chat-input"
+          placeholder="Ask about the weather (e.g. 'What is the weather?')..."
+          autocomplete="off"
+          required
+        >
+        <button type="submit" id="sendBtn" class="btn btn-primary chat-send-btn">Send</button>
+      </form>
+    </main>
+
+    <footer class="footer">
+      <p>Context Flow: <code>/chat</code> &rarr; <code>/api/settings (Auth0 Bearer Token)</code> &rarr; <code>Open-Meteo API</code></p>
+    </footer>
+  </div>
+
+  <script>
+    const chatThread = document.getElementById('chatThread');
+    const chatForm = document.getElementById('chatForm');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    function appendMessage(sender, text, isHtml = false) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message message-${sender}`;
+
+      const avatarDiv = document.createElement('div');
+      avatarDiv.className = 'message-avatar';
+      avatarDiv.innerHTML = sender === 'user' ? '&#128100;' : '&#129302;';
+
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'message-content';
+      if (isHtml) {
+        contentDiv.innerHTML = text;
+      } else {
+        const p = document.createElement('p');
+        p.textContent = text;
+        contentDiv.appendChild(p);
+      }
+
+      msgDiv.appendChild(avatarDiv);
+      msgDiv.appendChild(contentDiv);
+      chatThread.appendChild(msgDiv);
+      chatThread.scrollTop = chatThread.scrollHeight;
+      return msgDiv;
+    }
+
+    async function sendMessage(text) {
+      if (!text || !text.trim()) return;
+
+      appendMessage('user', text);
+      messageInput.value = '';
+      messageInput.disabled = true;
+      sendBtn.disabled = true;
+
+      // Show typing placeholder
+      const loadingMsg = appendMessage('assistant', '<em>Checking context &amp; weather...</em>', true);
+
+      try {
+        const response = await fetch('{{ url_for("chat") }}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ message: text })
+        });
+
+        const data = await response.json();
+        chatThread.removeChild(loadingMsg);
+
+        if (response.ok && data.reply) {
+          appendMessage('assistant', data.reply);
+        } else {
+          appendMessage('assistant', data.reply || data.error || 'Sorry, something went wrong.');
+        }
+      } catch (err) {
+        chatThread.removeChild(loadingMsg);
+        appendMessage('assistant', 'Network error contacting the assistant. Please try again.');
+      } finally {
+        messageInput.disabled = false;
+        sendBtn.disabled = false;
+        messageInput.focus();
+        chatThread.scrollTop = chatThread.scrollHeight;
+      }
+    }
+
+    function handleChatSubmit(event) {
+      event.preventDefault();
+      const text = messageInput.value.trim();
+      sendMessage(text);
+    }
+
+    function sendQuickPrompt(promptText) {
+      sendMessage(promptText);
+    }
+  </script>
+</body>
+</html>
+
