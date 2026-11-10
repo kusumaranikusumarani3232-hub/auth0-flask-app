@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Privacy-Aware RAG Bot - Auth0 FGA</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="container rag-container">
+    <header class="header">
+      <div class="logo-badge">Auth0 FGA &bull; Privacy-Aware RAG</div>
+      <h1>The Privacy-Aware RAG Bot</h1>
+      <nav class="nav-bar">
+        <a href="{{ url_for('home') }}" class="nav-link">Home</a>
+        <a href="{{ url_for('rag') }}" class="nav-link active">RAG Bot</a>
+        <a href="{{ url_for('chat') }}" class="nav-link">Weather Chat</a>
+        <a href="{{ url_for('settings') }}" class="nav-link">Settings</a>
+        <a href="{{ url_for('profile') }}" class="nav-link">Profile</a>
+        <a href="{{ url_for('logout') }}" class="nav-link nav-logout">Log Out</a>
+      </nav>
+    </header>
+
+    <!-- FGA Identity & Context Bar -->
+    <div class="identity-card">
+      <div class="identity-info">
+        <span class="identity-label">&#128100; Logged-in User:</span>
+        <strong id="activeUserEmail" class="identity-email">user:{{ user_email }}</strong>
+      </div>
+      <div class="role-selector-wrap">
+        <label for="demoUserSelect" class="identity-label">Demo Identity:</label>
+        <select id="demoUserSelect" class="identity-select" onchange="switchDemoUser()">
+          <option value="{{ user_email }}" selected>Logged-in ({{ user_email }})</option>
+          <option value="employee@test.com">employee@test.com (role:employee)</option>
+          <option value="kusumaranikusumarani3232@gmail.com">Manager (role:manager)</option>
+        </select>
+      </div>
+    </div>
+
+    <main class="card chat-card rag-card">
+      <!-- Knowledge Base Chips -->
+      <div class="kb-drawer">
+        <span class="kb-title">&#128193; Knowledge Base Documents:</span>
+        <div class="kb-chips">
+          {% for doc in documents %}
+            <span class="kb-chip" title="{{ doc.title }}"><code>{{ doc.id }}</code></span>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Chat Thread -->
+      <div class="chat-thread" id="chatThread">
+        <div class="message message-assistant">
+          <div class="message-avatar">&#128737;&#65039;</div>
+          <div class="message-content">
+            <p>Hello! I am <strong>The Privacy-Aware RAG Bot</strong>.</p>
+            <p>I search internal enterprise documents. <strong>BEFORE</strong> returning any matching document, I execute an <strong>Auth0 FGA Check</strong>:</p>
+            <p class="code-pill"><code>FGA Check(user:&lt;email&gt;, viewer, document:&lt;id&gt;)</code></p>
+            <p>If policy denies access, the document is strictly excluded from my response!</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Prompt Suggestions -->
+      <div class="quick-prompts">
+        <button type="button" class="prompt-chip" onclick="sendRagPrompt('What is our holiday and leave policy?')">
+          &#127881; Holiday Policy
+        </button>
+        <button type="button" class="prompt-chip" onclick="sendRagPrompt('Show me the executive salary report')">
+          &#128181; Salary Report
+        </button>
+        <button type="button" class="prompt-chip" onclick="sendRagPrompt('What are the legal memo guidelines on acquisitions?')">
+          &#9878;&#65039; Legal Memo
+        </button>
+        <button type="button" class="prompt-chip" onclick="sendRagPrompt('What is the remote work policy?')">
+          &#127969; Remote Work
+        </button>
+        <button type="button" class="prompt-chip" onclick="sendRagPrompt('What are our security protocols?')">
+          &#128272; Security Protocols
+        </button>
+      </div>
+
+      <!-- Input Area -->
+      <form id="ragForm" class="chat-input-area" onsubmit="handleRagSubmit(event)">
+        <input
+          type="text"
+          id="ragInput"
+          class="chat-input"
+          placeholder="Ask a question about internal company documents..."
+          autocomplete="off"
+          required
+        >
+        <button type="submit" id="ragSendBtn" class="btn btn-primary chat-send-btn">Ask RAG</button>
+      </form>
+    </main>
+
+    <footer class="footer">
+      <p>Fine-Grained Authorization powered by <code>openfga-sdk</code> &bull; Store: <code>{{ fga_store_id }}</code></p>
+    </footer>
+  </div>
+
+  <script>
+    const chatThread = document.getElementById('chatThread');
+    const ragInput = document.getElementById('ragInput');
+    const ragSendBtn = document.getElementById('ragSendBtn');
+    const demoUserSelect = document.getElementById('demoUserSelect');
+    const activeUserEmail = document.getElementById('activeUserEmail');
+
+    function switchDemoUser() {
+      const selected = demoUserSelect.value;
+      activeUserEmail.textContent = 'user:' + selected;
+    }
+
+    function appendUserMessage(text) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'message message-user';
+
+      const avatarDiv = document.createElement('div');
+      avatarDiv.className = 'message-avatar';
+      avatarDiv.innerHTML = '&#128100;';
+
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'message-content';
+      const p = document.createElement('p');
+      p.textContent = text;
+      contentDiv.appendChild(p);
+
+      msgDiv.appendChild(avatarDiv);
+      msgDiv.appendChild(contentDiv);
+      chatThread.appendChild(msgDiv);
+      chatThread.scrollTop = chatThread.scrollHeight;
+    }
+
+    function appendAssistantMessage(data) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'message message-assistant';
+
+      const avatarDiv = document.createElement('div');
+      avatarDiv.className = 'message-avatar';
+      avatarDiv.innerHTML = '&#128737;&#65039;';
+
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'message-content rag-response-content';
+
+      // 1. Reply Text
+      const replyP = document.createElement('p');
+      replyP.className = 'rag-reply-text';
+      replyP.innerText = data.reply || '';
+      contentDiv.appendChild(replyP);
+
+      // 2. Access Denied Note if present
+      if (data.status === 'denied' || data.access_denied_note) {
+        const deniedBanner = document.createElement('div');
+        deniedBanner.className = 'fga-note fga-note-denied';
+        deniedBanner.innerHTML = '<strong>&#128274; ' + (data.access_denied_note || 'Access denied by FGA') + '</strong>';
+        contentDiv.appendChild(deniedBanner);
+      }
+
+      // 3. FGA Authorization Decision Inspector Card
+      if (data.inspections && data.inspections.length > 0) {
+        const inspector = document.createElement('div');
+        inspector.className = 'fga-inspector';
+
+        const inspectorHeader = document.createElement('div');
+        inspectorHeader.className = 'fga-inspector-header';
+        inspectorHeader.innerHTML = '<span>&#9881;&#65039; Auth0 FGA Decision Check</span><span class="user-tag">' + (data.fga_user || ('user:' + data.user_email)) + '</span>';
+        inspector.appendChild(inspectorHeader);
+
+        const table = document.createElement('div');
+        table.className = 'fga-decision-table';
+
+        data.inspections.forEach(item => {
+          const row = document.createElement('div');
+          row.className = 'fga-decision-row ' + (item.allowed ? 'row-allowed' : 'row-denied');
+
+          const docCol = document.createElement('div');
+          docCol.className = 'fga-col-doc';
+          docCol.innerHTML = '<strong>' + item.doc_title + '</strong><br><small><code>document:' + item.doc_id + '</code> &bull; relation: <code>' + item.relation + '</code></small>';
+
+          const badgeCol = document.createElement('div');
+          badgeCol.className = 'fga-col-badge';
+          badgeCol.innerHTML = item.allowed
+            ? '<span class="badge badge-success">&#10003; ALLOWED</span>'
+            : '<span class="badge badge-danger">&#10007; DENIED (FGA)</span>';
+
+          row.appendChild(docCol);
+          row.appendChild(badgeCol);
+          table.appendChild(row);
+        });
+
+        inspector.appendChild(table);
+        contentDiv.appendChild(inspector);
+      }
+
+      msgDiv.appendChild(avatarDiv);
+      msgDiv.appendChild(contentDiv);
+      chatThread.appendChild(msgDiv);
+      chatThread.scrollTop = chatThread.scrollHeight;
+    }
+
+    async function sendRagPrompt(text) {
+      if (!text || !text.trim()) return;
+
+      appendUserMessage(text);
+      ragInput.value = '';
+      ragInput.disabled = true;
+      ragSendBtn.disabled = true;
+
+      // Loading bubble
+      const loadingDiv = document.createElement('div');
+      loadingDiv.className = 'message message-assistant';
+      loadingDiv.innerHTML = '<div class="message-avatar">&#128737;&#65039;</div><div class="message-content"><em>Evaluating FGA permissions &amp; documents...</em></div>';
+      chatThread.appendChild(loadingDiv);
+      chatThread.scrollTop = chatThread.scrollHeight;
+
+      const emailToSend = demoUserSelect.value;
+
+      try {
+        const response = await fetch('{{ url_for("rag") }}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            question: text,
+            email: emailToSend,
+          })
+        });
+
+        const data = await response.json();
+        chatThread.removeChild(loadingDiv);
+
+        if (response.ok) {
+          appendAssistantMessage(data);
+        } else {
+          appendAssistantMessage({
+            reply: data.error || 'Server returned an error.',
+            status: 'error',
+            inspections: []
+          });
+        }
+      } catch (err) {
+        chatThread.removeChild(loadingDiv);
+        appendAssistantMessage({
+          reply: 'Network error calling RAG bot. Please try again.',
+          status: 'error',
+          inspections: []
+        });
+      } finally {
+        ragInput.disabled = false;
+        ragSendBtn.disabled = false;
+        ragInput.focus();
+        chatThread.scrollTop = chatThread.scrollHeight;
+      }
+    }
+
+    function handleRagSubmit(event) {
+      event.preventDefault();
+      const text = ragInput.value.trim();
+      sendRagPrompt(text);
+    }
+  </script>
+</body>
+</html>
+

@@ -1,3 +1,4 @@
-﻿auth0-server-python>=1.0.0b7
+auth0-server-python>=1.0.0b7
 flask[async]>=2.0.0
 python-dotenv>=1.0.0
+openfga-sdk>=0.10.5

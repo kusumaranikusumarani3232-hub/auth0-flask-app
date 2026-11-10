@@ -1,4 +1,4 @@
-"""Flask application with Auth0 authentication and The Context-Preserving Assistant."""
+"""Flask application with Auth0 authentication, Context-Preserving Assistant, and The Privacy-Aware RAG Bot."""
 
 import os
 import uuid
@@ -18,6 +18,11 @@ from auth import (
     StartInteractiveLoginOptions,
     auth0,
     verify_access_token,
+)
+from fga import (
+    DOCUMENTS,
+    FGA_STORE_ID,
+    query_rag_pipeline,
 )
 
 app = Flask(__name__)
@@ -265,7 +270,7 @@ async def settings():
 
 
 # ============================================================================
-# The Context-Preserving Assistant (Chat Page & Endpoint)
+# The Context-Preserving Assistant (Weather Chat Page & Endpoint)
 # ============================================================================
 
 @app.route("/chat", methods=["GET", "POST"])
@@ -399,6 +404,53 @@ async def chat():
             return jsonify({"reply": reply})
 
     return render_template("chat.html", user=user)
+
+
+# ============================================================================
+# The Privacy-Aware RAG Bot (Auth0 FGA Protected)
+# ============================================================================
+
+@app.route("/rag", methods=["GET", "POST"])
+async def rag():
+    """
+    The Privacy-Aware RAG Bot:
+    For a question, finds matching documents by keyword search.
+    BEFORE returning any retrieved document, calls FGA Check
+    (user:<email>, viewer, document:<id>) using openfga-sdk.
+    Drops every document that is denied.
+    """
+    user = await get_current_user()
+    if not user:
+        if request.method == "POST":
+            return jsonify({"error": "Unauthorized. Please log in."}), 401
+        return redirect(url_for("login"))
+
+    user_email = (user.get("email") or "employee@test.com").strip().lower()
+
+    if request.method == "POST":
+        data = request.get_json(silent=True) or request.form
+        question = (data.get("question") or data.get("message") or "").strip()
+        simulated_email = (data.get("email") or "").strip().lower()
+        effective_email = simulated_email if simulated_email else user_email
+
+        if not question:
+            return jsonify({
+                "reply": "Please ask a question about internal company documents.",
+                "status": "empty",
+                "inspections": [],
+            })
+
+        result = await query_rag_pipeline(effective_email, question)
+        return jsonify(result)
+
+    # GET request
+    return render_template(
+        "rag.html",
+        user=user,
+        user_email=user_email,
+        documents=DOCUMENTS,
+        fga_store_id=FGA_STORE_ID or "Configured",
+    )
 
 
 if __name__ == "__main__":

@@ -13,7 +13,8 @@
       <h1>User Profile</h1>
       <nav class="nav-bar">
         <a href="{{ url_for('home') }}" class="nav-link">Home</a>
-        <a href="{{ url_for('chat') }}" class="nav-link">Chat</a>
+        <a href="{{ url_for('rag') }}" class="nav-link">RAG Bot</a>
+        <a href="{{ url_for('chat') }}" class="nav-link">Weather Chat</a>
         <a href="{{ url_for('settings') }}" class="nav-link">Settings</a>
         <a href="{{ url_for('profile') }}" class="nav-link active">Profile</a>
         <a href="{{ url_for('logout') }}" class="nav-link nav-logout">Log Out</a>
@@ -69,7 +70,8 @@
       </details>
 
       <div class="button-group">
-        <a href="{{ url_for('chat') }}" class="btn btn-primary">Open Chat</a>
+        <a href="{{ url_for('rag') }}" class="btn btn-primary">&#128737;&#65039; RAG Bot</a>
+        <a href="{{ url_for('chat') }}" class="btn btn-secondary">Weather Chat</a>
         <a href="{{ url_for('settings') }}" class="btn btn-secondary">Settings</a>
         <a href="{{ url_for('logout') }}" class="btn btn-danger">Log Out</a>
       </div>
