@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Profile - Auth0 Flask App</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="logo-badge">Auth0 + Flask</div>
+      <h1>User Profile</h1>
+    </header>
+
+    <main class="card profile-card">
+      <div class="profile-header">
+        {% if user.picture %}
+          <img src="{{ user.picture }}" alt="{{ user.name or 'User' }}" class="avatar-large">
+        {% else %}
+          <div class="avatar-placeholder avatar-large">
+            {{ (user.name or user.email or 'U')[0] | upper }}
+          </div>
+        {% endif %}
+        <h2>{{ user.name or user.nickname or 'Authenticated User' }}</h2>
+        <p class="subtitle">{{ user.email or 'No email provided' }}</p>
+      </div>
+
+      <div class="profile-details">
+        <div class="detail-row">
+          <span class="detail-label">Name</span>
+          <span class="detail-value">{{ user.name or 'N/A' }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Email</span>
+          <span class="detail-value">
+            {{ user.email or 'N/A' }}
+            {% if user.email_verified %}
+              <span class="badge badge-success">Verified</span>
+            {% elif user.email_verified is not none %}
+              <span class="badge badge-warning">Unverified</span>
+            {% endif %}
+          </span>
+        </div>
+        {% if user.nickname %}
+        <div class="detail-row">
+          <span class="detail-label">Nickname</span>
+          <span class="detail-value">{{ user.nickname }}</span>
+        </div>
+        {% endif %}
+        {% if user.sub %}
+        <div class="detail-row">
+          <span class="detail-label">User ID (sub)</span>
+          <span class="detail-value code">{{ user.sub }}</span>
+        </div>
+        {% endif %}
+      </div>
+
+      <details class="claims-accordion">
+        <summary>View Raw User Claims</summary>
+        <pre class="claims-json">{{ user | tojson(indent=2) }}</pre>
+      </details>
+
+      <div class="button-group">
+        <a href="{{ url_for('home') }}" class="btn btn-secondary">Back to Home</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-danger">Log Out</a>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>Protected Route: <code>/profile</code></p>
+    </footer>
+  </div>
+</body>
+</html>
+
